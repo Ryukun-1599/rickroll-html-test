@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>White High-Res Rickroll</title>
+    <style>
+        body {
+            background-color: #000;
+            color: #ffffff; /* 文字色を白に設定 */
+            font-family: "MS Gothic", "Courier New", monospace;
+            font-size: 5px; 
+            line-height: 0.9;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #output {
+            white-space: pre;
+            text-align: left;
+        }
+        #status {
+            color: #888888;
+            font-size: 12px;
+            position: absolute;
+            top: 10px;
+            font-family: sans-serif;
+        }
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="status">LOADING...</div>
+<div id="output"></div>
+<canvas id="canvas"></canvas>
+
+<script src="https://cdn.jsdelivr.net/gh/buzzfeed/libgif-js@master/libgif.js"></script>
+
+<script>
+const output = document.getElementById('output');
+const status = document.getElementById('status');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+const chars = "@%#*+=-:. ";
+const gifUrl = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExb2VhMnZyajhtZ2RwZHduaXp0cGZzY3RmN2kyaHZyN3Rwc2RhenBobiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Ju7l5y9osyymQ/giphy.gif";
+
+const img = new Image();
+img.src = gifUrl;
+
+const aaWidth = 180;
+const asciiFrames = [];
+let currentFrame = 0;
+
+img.onload = function() {
+    const sGif = new SuperGif({ gif: img, canvas: canvas, loop_mode: false, auto_play: false });
+    sGif.load(function() {
+        const numFrames = sGif.get_length();
+        const imgWidth = sGif.get_canvas().width;
+        const imgHeight = sGif.get_canvas().height;
+        const scale = aaWidth / imgWidth;
+        const aaHeight = Math.floor(imgHeight * scale * 0.45);
+
+        canvas.width = aaWidth;
+        canvas.height = aaHeight;
+
+        for (let i = 0; i < numFrames; i++) {
+            sGif.move_to(i);
+            ctx.drawImage(sGif.get_canvas(), 0, 0, aaWidth, aaHeight);
+            const imageData = ctx.getImageData(0, 0, aaWidth, aaHeight);
+            asciiFrames.push(convertToAscii(imageData, aaWidth));
+        }
+
+        status.style.display = "none";
+        startTypewriterSequence();
+    });
+};
+
+function convertToAscii(imageData, width) {
+    let ascii = "";
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+        const avg = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114);
+        ascii += chars[Math.floor((avg / 255) * (chars.length - 1))];
+        if (((i / 4) + 1) % width === 0) ascii += "\n";
+    }
+    return ascii;
+}
+
+function startTypewriterSequence() {
+    const firstFrame = asciiFrames[0];
+    const lines = firstFrame.split('\n');
+    let lineIndex = 0;
+    output.textContent = "";
+
+    function type() {
+        if (lineIndex < lines.length) {
+            // 1回で5行ずつ出力（さらに加速）
+            output.textContent += lines.slice(lineIndex, lineIndex + 5).join('\n') + '\n';
+            lineIndex += 5;
+            requestAnimationFrame(type);
+        } else {
+            startAnimation();
+        }
+    }
+    type();
+}
+
+function startAnimation() {
+    const fps = 15; 
+    const interval = 1000 / fps;
+    let lastTime = 0;
+
+    function animate(currentTime) {
+        if (currentTime - lastTime > interval) {
+            output.textContent = asciiFrames[currentFrame];
+            currentFrame = (currentFrame + 1) % asciiFrames.length;
+            lastTime = currentTime;
+        }
+        requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+}
+</script>
+</body>
+</html>
